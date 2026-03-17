@@ -1,0 +1,9 @@
+{
+  "name": "flowcast-root",
+  "version": "1.0.0",
+  "description": "Root wrapper to start the React frontend easily.",
+  "scripts": {
+    "dev": "cd flowcast-frontend && npm run dev",
+    "install:frontend": "cd flowcast-frontend && npm install"
+  }
+}

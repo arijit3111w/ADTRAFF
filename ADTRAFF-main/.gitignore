@@ -1,0 +1,24 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Models and Encoders
+models/*.pkl
+
+# Datasets
+data/*.csv
+data/*.parquet
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Project temporary files
+.tmp/
+.temp/
