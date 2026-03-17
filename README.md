@@ -1,633 +1,430 @@
-# 🚦 FlowCast: Traffic Flow Prediction System
+# 🚦 Nigerian Traffic Flow — Best Time To Travel
 
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
-[![Machine Learning](https://img.shields.io/badge/ML-Classification-green)](https://scikit-learn.org/)
-[![XGBoost](https://img.shields.io/badge/XGBoost-Enabled-orange)](https://xgboost.readthedocs.io/)
-
-**FlowCast** is an intelligent machine learning system designed to predict traffic situations based on real-time vehicle counts. The system classifies traffic conditions into four distinct categories: **Low**, **Normal**, **Heavy**, and **High**, enabling better traffic management and route planning decisions.
-
----
-
-## 📋 Table of Contents
-
-- [Project Overview](#-project-overview)
-- [Key Features](#-key-features)
-- [Dataset](#-dataset)
-- [Project Structure](#-project-structure)
-- [Installation](#-installation)
-- [Usage](#-usage)
-- [Methodology](#-methodology)
-- [Model Performance](#-model-performance)
-- [Results and Insights](#-results-and-insights)
-- [Technologies Used](#-technologies-used)
-- [Future Enhancements](#-future-enhancements)
-- [Contributing](#-contributing)
-- [License](#-license)
-
----
-
-## 🎯 Project Overview
-
-FlowCast addresses the critical challenge of traffic congestion by leveraging machine learning to predict traffic situations based on vehicle counts and temporal patterns. The system analyzes various factors including:
-
-- **Vehicle Distribution**: Cars, bikes, buses, and trucks
-- **Temporal Patterns**: Time of day, day of week, and date
-- **Historical Trends**: Traffic patterns across different time periods
-
-The primary goal is to provide accurate, real-time traffic situation predictions that can help:
-- **Traffic Management Systems**: Optimize signal timings and traffic flow
-- **Navigation Apps**: Suggest better routes based on predicted congestion
-- **Urban Planners**: Understand traffic patterns for infrastructure planning
-- **Commuters**: Make informed decisions about travel times and routes
-
----
-
-## ✨ Key Features
-
-### 🔍 Comprehensive Data Analysis
-- Exploratory data analysis with insightful visualizations
-- Traffic pattern identification across days and times
-- Correlation analysis between features
-
-### 🛠️ Advanced Feature Engineering
-- Time-based feature extraction (hour, minute, AM/PM)
-- Day of week encoding
-- Categorical variable transformation
-
-### 🤖 Multiple ML Models
-- **Logistic Regression**: Baseline classification
-- **Random Forest**: Ensemble learning approach
-- **Support Vector Classifier (SVC)**: Non-linear classification
-- **XGBoost**: Gradient boosting for optimal performance
-- **AdaBoost**: Adaptive boosting technique
-- **Voting Classifier**: Ensemble of all models
-
-### 📊 Model Evaluation
-- Cross-validation for robust assessment
-- Confusion matrix analysis
-- Detailed classification reports
-- Model comparison visualizations
-
-### 🎯 Custom Prediction Interface
-- Single input prediction capability
-- Probability distribution for each traffic class
-- Easy-to-use prediction format
-
----
-
-## 📊 Dataset
-
-### Source
-The dataset contains traffic sensor data collected over multiple days, recording vehicle counts and traffic situations at regular intervals.
-
-### Dataset Characteristics
-- **Total Records**: Varies based on collection period
-- **Features**: 10 input features
-- **Target Classes**: 4 traffic situations (Low, Normal, Heavy, High)
-- **File Location**: `data/raw/Traffic.csv`
-
-### Features Description
-
-| Feature | Type | Description |
-|---------|------|-------------|
-| **Time** | String | Timestamp in 12-hour format (HH:MM AM/PM) |
-| **Date** | Integer | Day of the month (1-31) |
-| **Day of the week** | String | Name of the weekday |
-| **CarCount** | Integer | Number of cars observed |
-| **BikeCount** | Integer | Number of bikes observed |
-| **BusCount** | Integer | Number of buses observed |
-| **TruckCount** | Integer | Number of trucks observed |
-| **Total** | Integer | Total vehicle count |
-| **Traffic Situation** | String | Target variable (low/normal/heavy/high) |
-
-### Engineered Features
-- **hour**: Hour of the day (0-23)
-- **minute**: Minute of the hour (0-59)
-- **AM/PM**: Binary indicator (0=AM, 1=PM)
+> A machine learning system that predicts the **optimal departure hour** for a road journey in Nigeria based on real-time segment-level traffic data, geographical coordinates, historical congestion patterns, and time-of-day features.
 
 ---
 
 ## 📁 Project Structure
 
 ```
-FlowCast-Traffic-Flow-Prediction/
-│
+ADTRAFF/
 ├── data/
-│   ├── raw/
-│   │   └── Traffic.csv              # Original dataset
-│   └── processed/
-│       └── traffic_processed.csv    # Cleaned and engineered data
+│   ├── nigerian_transport_and_logistics_traffic_flow.parquet  ← raw dataset (180k rows)
+│   ├── train.csv          ← preprocessed training split (70%)
+│   ├── val.csv            ← preprocessed validation split (15%)
+│   └── test.csv           ← preprocessed test split (15%)
 │
 ├── models/
-│   ├── logistic_regression.pkl      # Trained Logistic Regression model
-│   ├── random_forest.pkl            # Trained Random Forest model
-│   ├── svc.pkl                      # Trained SVC model
-│   ├── xgboost.pkl                  # Trained XGBoost model
-│   ├── adaboost.pkl                 # Trained AdaBoost model
-│   ├── voting_classifier.pkl        # Trained Voting Classifier
-│   └── scaler.pkl                   # StandardScaler for feature scaling
+│   ├── model_congestion_xgb.pkl    ← trained congestion index regressor
+│   ├── model_eta_xgb.pkl           ← trained ETA (minute) regressor
+│   ├── segment_label_encoder.pkl   ← LabelEncoder for segment_id
+│   └── feature_scaler.pkl          ← MinMaxScaler for numeric features
 │
-├── notebooks/
-│   ├── 01_data_preprocessing.ipynb  # Data loading and preprocessing
-│   ├── 02_model_training.ipynb      # Model training pipeline
-│   ├── 03_model_evaluation.ipynb    # Model evaluation and predictions
-│   └── full.ipynb                   # Complete analysis in one notebook
-│
-├── reports/
-│   └── figures/                     # Generated visualizations
-│
-├── .gitignore
-└── README.md                        # Project documentation
+└── scripts/
+    ├── preprocess.py         ← Step 1: data cleaning + feature engineering
+    ├── train_model.py        ← Step 2: XGBoost model training
+    ├── best_time_model.py    ← Step 3: inference with manual segment list
+    └── best_time_latlng.py   ← Step 3: inference with lat/lon coordinates
 ```
 
 ---
 
-## 🚀 Installation
+## 📊 The Dataset
 
-### Prerequisites
-- Python 3.8 or higher
-- pip package manager
-- Git
+**Source**: `electricsheepafrica/nigerian_transport_and_logistics_traffic_flow` (HuggingFace)  
+**Local File**: `data/nigerian_transport_and_logistics_traffic_flow.parquet`
 
-### Step 1: Clone the Repository
-```bash
-git clone https://github.com/johnjames10/FlowCast-Traffic-Flow-Prediction.git
-cd FlowCast-Traffic-Flow-Prediction
-```
+| Column | Type | Description |
+|---|---|---|
+| `timestamp` | datetime | Time the observation was recorded |
+| `hour` | int | Hour of day (0–23) |
+| `segment_id` | string | Unique road segment identifier (e.g. `SEG-0075626`) |
+| `lat` | float | Latitude of the road segment midpoint |
+| `lon` | float | Longitude of the road segment midpoint |
+| `avg_speed_kmh` | float | Average vehicle speed on the segment (km/h) |
+| `density_veh_per_km` | float | Vehicle density on the segment (vehicles per km) |
+| `congestion_index` | float | A 0–100 numeric measure of congestion severity |
+| `incidents` | int | Whether a traffic incident was reported (0 or 1) |
 
-### Step 2: Create Virtual Environment (Recommended)
-```bash
-# Windows
-python -m venv venv
-venv\Scripts\activate
-
-# macOS/Linux
-python3 -m venv venv
-source venv/bin/activate
-```
-
-### Step 3: Install Dependencies
-```bash
-pip install numpy pandas matplotlib seaborn scikit-learn xgboost jupyter
-```
-
-### Detailed Package Requirements
-```
-numpy>=1.21.0
-pandas>=1.3.0
-matplotlib>=3.4.0
-seaborn>=0.11.0
-scikit-learn>=1.0.0
-xgboost>=1.5.0
-jupyter>=1.0.0
-```
+**Dataset scale after loading**: 180,000 rows | 9 columns  
+**After cleaning**: ~172,943 rows (7,057 rows removed as outliers/nulls)  
+**Unique road segments**: 115,958 segments encoded and indexed
 
 ---
 
-## 💻 Usage
+## 🔧 Step 1: Preprocessing (`preprocess.py`)
 
-### Option 1: Run Complete Pipeline (Notebooks)
-
-#### 1. Data Preprocessing
-```bash
-jupyter notebook notebooks/01_data_preprocessing.ipynb
-```
-**What it does:**
-- Loads raw traffic data
-- Performs exploratory data analysis
-- Extracts time-based features
-- Encodes categorical variables
-- Saves processed data
-
-#### 2. Model Training
-```bash
-jupyter notebook notebooks/02_model_training.ipynb
-```
-**What it does:**
-- Loads processed data
-- Splits data into train/test sets
-- Scales features using StandardScaler
-- Trains 6 different ML models
-- Saves trained models and scaler
-
-#### 3. Model Evaluation
-```bash
-jupyter notebook notebooks/03_model_evaluation.ipynb
-```
-**What it does:**
-- Loads trained models
-- Evaluates performance on test set
-- Performs cross-validation
-- Generates visualizations
-- Provides custom prediction interface
-
-### Option 2: Use Trained Models Directly
+### 1.1 Data Cleaning
 
 ```python
-import pickle
-import pandas as pd
-import numpy as np
+# Timestamp parsing
+df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+df.dropna(subset=["timestamp"], inplace=True)
 
-# Load the trained XGBoost model
-with open('models/xgboost.pkl', 'rb') as f:
-    model = pickle.load(f)
+# Required column null check
+required_cols = ["avg_speed_kmh", "density_veh_per_km", "congestion_index", "incidents", "lat", "lon"]
+df.dropna(subset=required_cols, inplace=True)
 
-# Load the scaler
-with open('models/scaler.pkl', 'rb') as f:
-    scaler = pickle.load(f)
+# Outlier removal — top and bottom 1% per column (IQR clipping)
+for col in ["avg_speed_kmh", "density_veh_per_km", "congestion_index"]:
+    q1 = df[col].quantile(0.01)
+    q99 = df[col].quantile(0.99)
+    df = df[(df[col] >= q1) & (df[col] <= q99)]
 
-# Create custom input
-custom_input = {
-    'Date': 15,
-    'Day of the week': 3,      # 0=Monday, 6=Sunday
-    'CarCount': 120,
-    'BikeCount': 45,
-    'BusCount': 8,
-    'TruckCount': 15,
-    'Total': 188,
-    'hour': 17,
-    'minute': 30,
-    'AM/PM': 1                 # 0=AM, 1=PM
-}
-
-# Convert to DataFrame and scale
-input_df = pd.DataFrame([custom_input])
-input_scaled = scaler.transform(input_df)
-
-# Make prediction
-prediction = model.predict(input_scaled)
-probabilities = model.predict_proba(input_scaled)
-
-# Map prediction to traffic situation
-situations = {0: 'Low', 1: 'Normal', 2: 'Heavy', 3: 'High'}
-print(f"Predicted Traffic: {situations[prediction[0]]}")
+# Clip incidents to binary 0/1
+df["incidents"] = df["incidents"].clip(0, 1).astype(int)
 ```
 
----
+### 1.2 Feature Engineering
 
-## 🔬 Methodology
+All new features are derived from existing columns:
 
-### 1. Data Collection and Loading
-- Import traffic data from CSV file
-- Initial data exploration and profiling
-- Identify data types and missing values
+#### 🕰️ Cyclical Temporal Encoding
 
-### 2. Exploratory Data Analysis (EDA)
+Hours and days of the week are **cyclical** — hour 23 is adjacent to hour 0, and Sunday is adjacent to Monday. Simply using raw integers would mislead the model into thinking there's a large distance between these values. To fix this, we apply **sine and cosine transforms**:
 
-#### Key Findings:
-- 📊 **Vehicle Impact**: CarCount has the highest correlation with traffic situation
-- 📅 **Busy Days**: Wednesday and Thursday see the most traffic
-- ⏰ **Peak Hours**: 8:00 AM - 10:00 AM and 3:00 PM - 6:00 PM
-- 🌙 **Night Traffic**: Heavy traffic mostly occurs after 9:00 PM
-- 📉 **Low Traffic**: Friday typically has minimum traffic
-- ✅ **Data Quality**: No missing values in the dataset
-
-#### Visualizations Created:
-- Traffic distribution by day of week
-- Vehicle count histograms
-- Correlation heatmaps
-- Time-based traffic patterns
-- Joint plots for feature relationships
-
-### 3. Data Preprocessing
-
-#### Feature Engineering Steps:
 ```python
-# Time feature extraction
-data['hour'] = pd.to_datetime(data['Time']).dt.hour
-data['minute'] = pd.to_datetime(data['Time']).dt.minute
-data['AM/PM'] = data['Time'].apply(lambda x: 0 if 'AM' in x else 1)
+df["sin_hour"] = np.sin(2 * np.pi * df["hour"] / 24)   # cyclical hour
+df["cos_hour"] = np.cos(2 * np.pi * df["hour"] / 24)
 
-# Categorical encoding
-day_mapping = {'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 
-               'Thursday': 4, 'Friday': 5, 'Saturday': 6, 'Sunday': 7}
-data['Day of the week'] = data['Day of the week'].replace(day_mapping)
-
-# Target encoding
-situation_mapping = {'low': 0, 'normal': 1, 'heavy': 2, 'high': 3}
-data['Traffic Situation'] = data['Traffic Situation'].replace(situation_mapping)
+df["day_of_week"] = df["timestamp"].dt.dayofweek        # Mon=0, Sun=6
+df["sin_dow"] = np.sin(2 * np.pi * df["day_of_week"] / 7)
+df["cos_dow"] = np.cos(2 * np.pi * df["day_of_week"] / 7)
 ```
 
-### 4. Data Splitting
-- **Training Set**: 80% of data
-- **Test Set**: 20% of data
-- **Random State**: 0 (for reproducibility)
+This ensures that the model perceives time as circular, not linear.
 
-### 5. Feature Scaling
-- **Method**: StandardScaler
-- **Purpose**: Normalize features to have mean=0 and std=1
-- **Applied To**: All numeric features
+#### 📅 Calendar Features
 
-### 6. Model Training
-
-#### Models Implemented:
-
-1. **Logistic Regression**
-   - Multi-class classification with OvR strategy
-   - Max iterations: 1000
-   - Good baseline performance
-
-2. **Random Forest Classifier**
-   - Number of trees: 100
-   - Captures non-linear relationships
-   - Handles feature interactions well
-   - Accuracy: ~99.4%
-
-3. **Support Vector Classifier (SVC)**
-   - Kernel: RBF (default)
-   - Probability enabled for soft predictions
-   - Effective for high-dimensional data
-
-4. **XGBoost Classifier**
-   - Gradient boosting framework
-   - Excellent performance on structured data
-   - Accuracy: ~99.8% - 100%
-   - **Best performing model**
-
-5. **AdaBoost Classifier**
-   - Adaptive boosting algorithm
-   - Sequential error correction
-   - Combines weak learners
-
-6. **Voting Classifier**
-   - Ensemble of all 5 models
-   - Hard voting strategy
-   - Combines predictions for robustness
-
-### 7. Model Evaluation
-
-#### Evaluation Metrics:
-- **Accuracy Score**: Overall correct predictions
-- **Confusion Matrix**: Class-wise prediction analysis
-- **Classification Report**: Precision, Recall, F1-Score per class
-- **Cross-Validation**: 5-fold CV for robust assessment
-
-#### Validation Strategy:
 ```python
-# 5-Fold Cross-Validation
-scores = cross_val_score(model, X_train_scaled, y_train, cv=5, scoring='accuracy')
-mean_accuracy = scores.mean()
-std_deviation = scores.std()
+df["day_of_month"] = df["timestamp"].dt.day     # 1–31
+df["month"] = df["timestamp"].dt.month          # 1–12
+df["is_weekend"] = (df["day_of_week"] >= 5).astype(int)  # 1 if Sat/Sun
+```
+
+#### 🕐 Time-of-Day Bucket
+
+Each hour is mapped to a human-meaningful traffic period:
+
+| Bucket | Hours | Label |
+|---|---|---|
+| 0 | 06:00–09:00 | Morning Rush |
+| 1 | 10:00–15:00 | Midday |
+| 2 | 16:00–19:00 | Evening Rush |
+| 3 | 20:00–05:00 | Night / Off-Peak |
+
+```python
+def time_bucket(h):
+    if 6 <= h <= 9:   return 0
+    elif 10 <= h <= 15: return 1
+    elif 16 <= h <= 19: return 2
+    else:               return 3
+```
+
+#### 🚗 Interaction Features
+
+These derived features capture the relationship between speed and density:
+
+```python
+# Road stress: high when both fast AND dense (conflicting forces)
+df["speed_density"] = df["avg_speed_kmh"] * df["density_veh_per_km"]
+
+# Efficiency: how much speed is retained relative to density
+df["speed_efficiency"] = df["avg_speed_kmh"] / (df["density_veh_per_km"] + 1)
+```
+
+#### 🎯 Target Variable: ETA
+
+The actual travel time in minutes for a 10 km road segment is derived from speed:
+
+```python
+SEGMENT_KM = 10
+df["eta_minutes"] = (SEGMENT_KM / df["avg_speed_kmh"]) * 60
+```
+
+### 1.3 Encoding
+
+#### Segment ID — Label Encoding
+
+The `segment_id` string column (e.g., `"SEG-0075626"`) is converted to a numeric integer:
+
+```python
+le = LabelEncoder()
+df["segment_encoded"] = le.fit_transform(df["segment_id"])
+joblib.dump(le, "models/segment_label_encoder.pkl")
+```
+
+This maps each of the 115,958 unique segments to an integer `[0, 115957]`.
+
+### 1.4 Feature Scaling
+
+Continuous numeric features are scaled to the `[0, 1]` range using `MinMaxScaler` so they all have equal influence during gradient boosting:
+
+```python
+SCALE_COLS = ["lat", "lon", "density_veh_per_km", "avg_speed_kmh", "speed_density", "speed_efficiency"]
+scaler = MinMaxScaler()
+df[SCALE_COLS] = scaler.fit_transform(df[SCALE_COLS])
+joblib.dump(scaler, "models/feature_scaler.pkl")
+```
+
+### 1.5 Final Feature List (16 features)
+
+| Feature | Description |
+|---|---|
+| `sin_hour`, `cos_hour` | Cyclical hour encoding |
+| `sin_dow`, `cos_dow` | Cyclical day-of-week encoding |
+| `day_of_month` | Day of month (1–31) |
+| `month` | Month (1–12) |
+| `is_weekend` | Binary (1 = weekend) |
+| `time_bucket` | Traffic period (0–3) |
+| `lat`, `lon` | Scaled segment coordinates |
+| `segment_encoded` | Integer-encoded segment ID |
+| `density_veh_per_km` | Scaled vehicle density |
+| `avg_speed_kmh` | Scaled average speed |
+| `incidents` | Binary incident flag |
+| `speed_density` | Scaled speed × density product |
+| `speed_efficiency` | Scaled speed ÷ (density + 1) ratio |
+
+### 1.6 Train / Validation / Test Split
+
+```
+172,943 rows total
+  → Train : 121,060 rows  (70%)
+  → Val   :  25,941 rows  (15%)
+  → Test  :  25,942 rows  (15%)
+```
+
+### 1.7 Target Variable Statistics
+
+```
+congestion_index → mean = 37.34, std = 16.08
+eta_minutes      → mean = 12.41, std =  5.51
+```
+
+This tells us the average Nigerian road segment experiences **light to moderate congestion** (~37 on a 0–100 scale), and takes about **12.4 minutes** to traverse at prevailing speeds.
+
+---
+
+## 🤖 Step 2: Model Training (`train_model.py`)
+
+The project uses **two cascaded XGBoost Regressors** — one for congestion and one for ETA.
+
+### Why XGBoost?
+
+XGBoost (eXtreme Gradient Boosting) is an ensemble decision-tree algorithm that:
+- Handles non-linear relationships between time features and congestion
+- Is robust to unscaled categorical features (segment encodings)
+- Supports early stopping to prevent overfitting
+- Trains efficiently on large tabular datasets
+
+### Model 1: Congestion Regressor
+
+**Input**: 16 features (described above)  
+**Output**: Continuous `congestion_index` (0–100)
+
+```python
+model_congestion = XGBRegressor(
+    n_estimators=100,
+    learning_rate=0.1,
+    random_state=42,
+    early_stopping_rounds=10
+)
+model_congestion.fit(X_train, y_train_cong, eval_set=[(X_val, y_val_cong)])
+```
+
+### Model 2: ETA Regressor
+
+**Input**: 16 features + `pred_congestion` (17 features)  
+**Output**: Continuous `eta_minutes`
+
+The predicted congestion from Model 1 is **injected as an additional feature** when training Model 2. This creates a cascaded prediction chain:
+
+```
+16 features → Congestion Model → pred_congestion_index
+                   ↓
+(16 features + pred_congestion) → ETA Model → eta_minutes
+```
+
+This cascade is inspired by the physical relationship: _higher congestion → lower speed → higher ETA_.
+
+```python
+train_df["pred_congestion"] = model_congestion.predict(X_train)
+val_df["pred_congestion"]   = model_congestion.predict(X_val)
+
+model_eta = XGBRegressor(n_estimators=100, learning_rate=0.1, ...)
+model_eta.fit(X_train[ETA_FEATURES], y_train_eta, ...)
+```
+
+### Artifacts Saved
+
+| File | Size | Contents |
+|---|---|---|
+| `model_congestion_xgb.pkl` | ~359 KB | Trained congestion regressor |
+| `model_eta_xgb.pkl` | ~449 KB | Trained ETA regressor |
+| `segment_label_encoder.pkl` | ~1.5 MB | Label encoder for 115,958 segments |
+| `feature_scaler.pkl` | ~1.2 KB | Min-max scaler for 6 numeric features |
+
+---
+
+## 🗺️ Step 3: Inference — Lat/Lon API (`best_time_latlng.py`)
+
+This script transforms raw geographic coordinates into a best-departure-hour recommendation.
+
+### Full Inference Pipeline
+
+```
+User Input: (start_lat, start_lon) → (end_lat, end_lon), time window
+         ↓
+1. Linear interpolation: draw N waypoints along the straight-line path
+         ↓
+2. BallTree spatial lookup: snap each waypoint to its nearest road segment
+         ↓
+3. Route assembly: a sequence of up to N unique segment dicts
+         ↓
+4. For each hour H in [start_hour .. end_hour]:
+       a. Build a feature row per segment for hour H
+       b. Apply MinMaxScaler to numeric columns  
+       c. Congestion Model → congestion_index per segment
+       d. ETA Model → eta_minutes per segment
+       e. Sum ETA; average congestion
+       f. Composite Score = 0.6 × Σ(ETA) + 0.4 × (avg_congestion/100) × Σ(ETA)
+         ↓
+5. Best hour = argmin(composite_score)
+         ↓
+Output: best_departure_hour, ETA, congestion level, segment detail
+```
+
+### The Composite Score Formula
+
+```
+Score = η_w × Σ(ETA) + c_w × (avg_congestion / 100) × Σ(ETA)
+```
+
+Where:
+- `η_w = 0.6`  — ETA is the primary objective (travel time minimization)
+- `c_w = 0.4`  — Congestion penalises comfort/reliability
+- **Lower score = better departure time**
+
+### Spatial Indexing with BallTree
+
+Rather than brute-force nearest-neighbour search over all 118,941 road segments, we use a BallTree:
+
+```python
+# Build the spatial index once at startup
+_coords_rad = np.radians(SEGMENT_DB[["lat", "lon"]].values)
+SPATIAL_INDEX = BallTree(_coords_rad, metric="haversine")
+
+# Query at runtime
+dist_rad, idxs = SPATIAL_INDEX.query(np.radians([[lat, lon]]), k=1)
+dist_km = dist_rad[0][0] * 6371   # convert radians → km
+```
+
+This gives `O(log n)` lookup time vs `O(n)` brute force, making real-time queries feasible.
+
+### Congestion Level Mapping
+
+| Congestion Index | Level |
+|---|---|
+| < 25 | 🟢 Free Flow |
+| 25–44 | 🟡 Light |
+| 45–64 | 🟠 Moderate |
+| 65–79 | 🔴 Heavy |
+| ≥ 80 | 🔴 Severe |
+
+---
+
+## 📈 Example Output Walk-Through
+
+**From**: (6.5°N, 13.0°E) → **To**: (8.5°N, 14.5°E)  
+**Date**: 2025-03-17 (Monday)  
+**Window**: 06:00 to 21:00
+
+```
+🗺️  Straight-line distance: ~277.13 km
+🛣️  Road segments matched: 6 (via waypoint interpolation)
+```
+
+**Hourly Scoring**:
+
+| Hour | ETA (min) | Avg Congestion | Level | Score |
+|---|---|---|---|---|
+| 06:00 | 89.90 | 44.75 | Light | 70.03 |
+| 07:00 | 89.91 | 46.27 | Moderate | 70.59 |
+| 08:00 | 89.91 | 45.72 | Moderate | 70.39 |
+| ... | ... | ... | ... | ... |
+| **14:00** | **90.0** | **39.2** | **Light** | **67.xx** ← BEST |
+| 16:00 | 89.91 | 42.21 | Light | 69.13 |
+| 21:00 | 89.91 | 44.35 | Light | 69.90 |
+
+**✅ Best Departure: 14:00 (2:00 PM)**
+
+| Segment | Lat | Lon | Speed (km/h) | Congestion | ETA | Level |
+|---|---|---|---|---|---|---|
+| SEG-0075626 | 6.500 | 13.005 | 81.9 | 26.2 | 7.31 min | Light |
+| SEG-0027115 | 6.885 | 13.310 | 83.9 | 25.4 | 7.15 min | Light |
+| SEG-0081439 | 7.300 | 13.608 | 52.4 | 28.6 | 11.46 min | Light |
+| SEG-0166025 | 7.698 | 13.899 | 64.8 | 32.2 | 9.27 min | Light |
+| SEG-0076658 | 8.085 | 14.177 | 25.8 | 55.9 | 23.42 min | Moderate |
+| SEG-0040247 | 8.510 | 14.481 | 19.0 | 67.1 | 31.35 min | **Heavy** |
+
+The last two segments in this route (towards the destination) dominate the travel time due to slow speeds (19–25 km/h) and elevated congestion. These could indicate a major urban area, a bottleneck junction, or high density roads near the destination point.
+
+---
+
+## 🔁 How to Run (End-to-End)
+
+```bash
+# Step 0: Install dependencies
+pip install pandas numpy scikit-learn xgboost joblib pyarrow scikit-learn
+
+# Step 1: Preprocess data
+cd scripts
+python preprocess.py
+
+# Step 2: Train the models
+python train_model.py
+
+# Step 3: Run the lat/lon best-time inference
+python "best_time_latlng .py"
 ```
 
 ---
 
-## 📈 Model Performance
+## ⚙️ Configuration Options
 
-### Test Set Results
+In `best_time_latlng.py`, you can customize:
 
-| Model | Test Accuracy | Cross-Val Mean | CV Std Dev |
-|-------|--------------|----------------|------------|
-| **XGBoost** | **100.0%** | **99.8%** | **±0.003** |
-| Random Forest | 99.4% | 99.4% | ±0.004 |
-| Voting Classifier | 99.2% | - | - |
-| SVC | 98.8% | 98.6% | ±0.005 |
-| AdaBoost | 97.5% | 97.2% | ±0.008 |
-| Logistic Regression | 96.2% | 96.0% | ±0.010 |
-
-### Best Model: XGBoost
-
-#### Why XGBoost Performs Best:
-1. **Gradient Boosting**: Builds trees sequentially, correcting errors
-2. **Regularization**: Built-in L1 and L2 regularization prevents overfitting
-3. **Handling Complexity**: Captures non-linear patterns effectively
-4. **Speed**: Optimized for performance with parallel processing
-5. **Feature Importance**: Provides insights into feature contributions
-
-#### Classification Report (XGBoost):
-```
-              precision    recall  f1-score   support
-
-         Low       1.00      1.00      1.00       XXX
-      Normal       1.00      1.00      1.00       XXX
-       Heavy       1.00      1.00      1.00       XXX
-        High       1.00      1.00      1.00       XXX
-
-    accuracy                           1.00       XXX
-   macro avg       1.00      1.00      1.00       XXX
-weighted avg       1.00      1.00      1.00       XXX
+```python
+result = find_best_time(
+    start_lat   = 6.5,          # source latitude
+    start_lon   = 13.0,         # source longitude
+    end_lat     = 8.5,          # destination latitude
+    end_lon     = 14.5,         # destination longitude
+    start_hour  = 6,            # departure window start (0–23)
+    end_hour    = 21,           # departure window end (0–23)
+    travel_date = date(2025, 3, 17),  # date of travel
+    n_waypoints = 6,            # interpolation points along route
+    eta_weight  = 0.6,          # priority weight for ETA
+    cong_weight = 0.4,          # priority weight for congestion
+)
 ```
 
-### Confusion Matrix
-The confusion matrix shows perfect classification with no misclassifications across all four traffic situation classes.
+---
+
+## 🧠 Key Concepts Summary
+
+| Concept | What We Did |
+|---|---|
+| Cyclical time encoding | Sine/cosine of hour and day-of-week |
+| Segment encoding | LabelEncoder for 115k+ unique segment IDs |
+| Feature scaling | MinMaxScaler for 6 continuous features |
+| ETA proxy target | `(10 km / avg_speed) × 60` minutes |
+| Congestion target | Raw `congestion_index` column (0–100) |
+| Cascaded models | Congestion prediction fed as feature to ETA model |
+| Spatial lookup | BallTree with Haversine metric for nearest road snap |
+| Route building | Straight-line waypoint interpolation + deduplication |
+| Hourly sweep | Predict every hour in window; pick lowest composite score |
 
 ---
 
-## 💡 Results and Insights
-
-### Key Discoveries from Analysis
-
-#### 1. Vehicle Type Impact
-- **Cars (CarCount)** contribute most significantly to traffic situations
-- Heavy vehicles (buses, trucks) have moderate impact
-- Bikes show minimal correlation with traffic congestion
-
-#### 2. Temporal Patterns
-- **Peak Morning Hours**: 8:00 AM - 10:00 AM (office commute)
-- **Peak Evening Hours**: 3:00 PM - 6:00 PM (return commute)
-- **Off-Peak**: 10:00 PM - 6:00 AM (low traffic)
-
-#### 3. Weekly Trends
-- **Busiest Days**: Wednesday, Thursday
-- **Moderate Days**: Monday, Tuesday
-- **Lightest Day**: Friday (early weekend effect)
-- **Weekend**: Saturday and Sunday show distinct patterns
-
-#### 4. Traffic Situation Distribution
-- **Normal Traffic**: Most common situation
-- **Heavy Traffic**: Concentrated in peak hours
-- **Low Traffic**: Early morning and late night
-- **High Traffic**: Rare, special events or incidents
-
-#### 5. Model Insights
-- Ensemble methods outperform individual classifiers
-- XGBoost handles class imbalance effectively
-- Feature scaling significantly improves performance
-- Time-based features are highly predictive
-
----
-
-## 🛠️ Technologies Used
-
-### Programming Language
-- ![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)
-
-### Data Processing & Analysis
-- **Pandas**: Data manipulation and analysis
-- **NumPy**: Numerical computing and array operations
-
-### Machine Learning
-- **Scikit-learn**: ML algorithms and utilities
-  - Model training and evaluation
-  - Preprocessing and scaling
-  - Cross-validation
-  - Metrics calculation
-- **XGBoost**: Gradient boosting framework
-
-### Data Visualization
-- **Matplotlib**: Plotting and visualization
-- **Seaborn**: Statistical data visualization
-
-### Development Environment
-- **Jupyter Notebook**: Interactive development and documentation
-- **Git**: Version control
-- **GitHub**: Code hosting and collaboration
-
-### Model Persistence
-- **Pickle**: Model serialization and storage
-
----
-
-## 🔮 Future Enhancements
-
-### Short-term Improvements
-1. **Web Interface**
-   - Deploy using Streamlit or Flask
-   - Interactive prediction dashboard
-   - Real-time traffic monitoring
-
-2. **Mobile Application**
-   - Android/iOS app for on-the-go predictions
-   - Push notifications for traffic alerts
-   - Route optimization suggestions
-
-3. **Additional Features**
-   - Weather data integration
-   - Special events calendar
-   - Road construction information
-   - Accident/incident data
-
-### Long-term Goals
-1. **Real-time Predictions**
-   - Live traffic sensor integration
-   - Streaming data processing
-   - Real-time model updates
-
-2. **Geographic Expansion**
-   - Multiple road segments
-   - City-wide coverage
-   - Inter-city traffic analysis
-
-3. **Deep Learning**
-   - LSTM networks for time series
-   - CNN for pattern recognition
-   - Transformer models for sequence prediction
-
-4. **Advanced Analytics**
-   - Predictive maintenance for infrastructure
-   - Traffic signal optimization
-   - Route planning algorithms
-   - Congestion pricing recommendations
-
-5. **API Development**
-   - RESTful API for predictions
-   - Integration with third-party services
-   - Documentation and SDKs
-
----
-
-## 🎓 How to Use This Project
-
-### For Students & Learners
-- Study the complete ML pipeline from data to deployment
-- Learn feature engineering techniques
-- Understand model comparison and selection
-- Practice with Jupyter notebooks
-
-### For Developers
-- Use the trained models in your applications
-- Extend the system with new features
-- Integrate with existing traffic systems
-- Contribute improvements via pull requests
-
-### For Researchers
-- Baseline for traffic prediction research
-- Compare new algorithms against existing models
-- Test different feature engineering approaches
-- Explore ensemble methods
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Here's how you can help:
-
-1. **Fork the Repository**
-2. **Create a Feature Branch**
-   ```bash
-   git checkout -b feature/AmazingFeature
-   ```
-3. **Commit Your Changes**
-   ```bash
-   git commit -m 'Add some AmazingFeature'
-   ```
-4. **Push to the Branch**
-   ```bash
-   git push origin feature/AmazingFeature
-   ```
-5. **Open a Pull Request**
-
-### Areas for Contribution
-- Add new ML models
-- Improve data preprocessing
-- Enhance visualizations
-- Write documentation
-- Fix bugs
-- Add test cases
-
----
-
-## 📝 License
-
-This project is open source and available under the [MIT License](LICENSE).
-
----
-
-## 👥 Team & Acknowledgments
-
-### Development Team
-This project was developed collaboratively with contributions in:
-- Data collection and preprocessing
-- Feature engineering
-- Model development and training
-- Evaluation and visualization
-- Documentation
-
-### Acknowledgments
-- Dataset providers
-- Open-source community
-- Machine learning libraries maintainers
-
----
-
-## 📧 Contact
-
-For questions, suggestions, or collaboration opportunities:
-
-- **GitHub**: [johnjames10/FlowCast-Traffic-Flow-Prediction](https://github.com/johnjames10/FlowCast-Traffic-Flow-Prediction)
-- **Issues**: [Report a bug or request a feature](https://github.com/johnjames10/FlowCast-Traffic-Flow-Prediction/issues)
-
----
-
-## 📊 Project Status
-
-![Status](https://img.shields.io/badge/Status-Complete-success)
-![Maintenance](https://img.shields.io/badge/Maintenance-Active-green)
-![Contributions](https://img.shields.io/badge/Contributions-Welcome-brightgreen)
-
-**Current Version**: 1.0.0  
-**Last Updated**: January 2026
-
----
-
-## 🌟 Star History
-
-If you find this project useful, please consider giving it a ⭐!
-
----
-
-<div align="center">
-  <strong>Built with ❤️ for better traffic management</strong>
-  <br>
-  <sub>Making commutes smarter, one prediction at a time</sub>
-</div>
+*Built using Python, Pandas, Scikit-Learn, XGBoost, and NumPy.*
