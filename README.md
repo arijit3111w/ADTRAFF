@@ -1,4 +1,4 @@
-# 🚦 Nigerian Traffic Flow — Best Time To Travel
+# 🚦 FLOWCAST - Best Time To Travel
 
 > A machine learning system that predicts the **optimal departure hour** for a road journey in Nigeria based on real-time segment-level traffic data, geographical coordinates, historical congestion patterns, and time-of-day features.
 
