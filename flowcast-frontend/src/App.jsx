@@ -21,7 +21,7 @@ const SITUATION_BG = {
 }
 
 // ─── Map Component ───────────────────────────────────────────────────────────
-function MapView({ prediction, origin, destination, originCoords, destCoords }) {
+function MapView({ prediction, origin, destination, originCoords, destCoords, setOrigin, setDestination, routeGeometry }) {
   const mapRef = useRef(null)
   const mapInstance = useRef(null)
   const markersRef = useRef({ origin: null, dest: null })
@@ -58,6 +58,35 @@ function MapView({ prediction, origin, destination, originCoords, destCoords }) 
         })
 
         map.addControl(new window.mapboxgl.NavigationControl({ showCompass: true }), 'bottom-right')
+
+        const reverseGeocode = async (lng, lat) => {
+          try {
+            const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${import.meta.env.VITE_MAPBOX_TOKEN}`);
+            const data = await res.json();
+            if (data.features && data.features.length > 0) {
+              return data.features[0].place_name;
+            }
+          } catch(err) { console.error(err); }
+          return `${lng.toFixed(5)}, ${lat.toFixed(5)}`;
+        };
+
+        map.on('click', async (e) => {
+          const lng = e.lngLat.lng;
+          const lat = e.lngLat.lat;
+          const placeName = await reverseGeocode(lng, lat);
+          
+          if (!originCoords && !destCoords) {
+            setOrigin(placeName);
+          } else if (originCoords && !destCoords) {
+            setDestination(placeName);
+          } else if (!originCoords && destCoords) {
+            setOrigin(placeName);
+          } else {
+            // Both set, start over from origin
+            setOrigin(placeName);
+            setDestination('');
+          }
+        })
       })
     }
     document.head.appendChild(script)
@@ -73,24 +102,45 @@ function MapView({ prediction, origin, destination, originCoords, destCoords }) 
     if (markersRef.current.origin) { markersRef.current.origin.remove(); markersRef.current.origin = null }
     if (markersRef.current.dest) { markersRef.current.dest.remove(); markersRef.current.dest = null }
 
+    const reverseGeocode = async (lng, lat) => {
+      try {
+        const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${import.meta.env.VITE_MAPBOX_TOKEN}`);
+        const data = await res.json();
+        if (data.features && data.features.length > 0) return data.features[0].place_name;
+      } catch(err) { console.error(err); }
+      return `${lng.toFixed(5)}, ${lat.toFixed(5)}`;
+    };
+
     // Add origin marker
     if (originCoords) {
       const el = document.createElement('div')
       el.innerHTML = `<div style="width:14px;height:14px;border-radius:50%;background:#00C2FF;border:3px solid #fff;box-shadow:0 0 12px rgba(0,194,255,0.7)"></div>`
-      markersRef.current.origin = new window.mapboxgl.Marker(el)
+      markersRef.current.origin = new window.mapboxgl.Marker({ element: el, draggable: true })
         .setLngLat(originCoords)
         .setPopup(new window.mapboxgl.Popup({ offset: 15 }).setHTML('<div style="font-family:monospace;font-size:11px;color:#333"><strong>Origin</strong><br/>' + originCoords.map(c => c.toFixed(4)).join(', ') + '</div>'))
         .addTo(map)
+
+      markersRef.current.origin.on('dragend', async () => {
+        const lngLat = markersRef.current.origin.getLngLat();
+        const placeName = await reverseGeocode(lngLat.lng, lngLat.lat);
+        setOrigin(placeName);
+      });
     }
 
     // Add destination marker
     if (destCoords) {
       const el = document.createElement('div')
       el.innerHTML = `<div style="width:14px;height:14px;border-radius:50%;background:#FFB800;border:3px solid #fff;box-shadow:0 0 12px rgba(255,184,0,0.7)"></div>`
-      markersRef.current.dest = new window.mapboxgl.Marker(el)
+      markersRef.current.dest = new window.mapboxgl.Marker({ element: el, draggable: true })
         .setLngLat(destCoords)
         .setPopup(new window.mapboxgl.Popup({ offset: 15 }).setHTML('<div style="font-family:monospace;font-size:11px;color:#333"><strong>Destination</strong><br/>' + destCoords.map(c => c.toFixed(4)).join(', ') + '</div>'))
         .addTo(map)
+
+      markersRef.current.dest.on('dragend', async () => {
+        const lngLat = markersRef.current.dest.getLngLat();
+        const placeName = await reverseGeocode(lngLat.lng, lngLat.lat);
+        setDestination(placeName);
+      });
     }
 
     // Fit bounds to show both markers
@@ -117,15 +167,19 @@ function MapView({ prediction, origin, destination, originCoords, destCoords }) 
 
     const color = SITUATION_COLORS[prediction.situation]
 
-    // Curved route via midpoint
-    const midLng = (ORIGIN_COORDS[0] + DEST_COORDS[0]) / 2 - 0.02
-    const midLat = (ORIGIN_COORDS[1] + DEST_COORDS[1]) / 2 + 0.01
-    const coords = []
-    for (let i = 0; i <= 30; i++) {
-      const t = i / 30
-      const lng = (1-t)*(1-t)*ORIGIN_COORDS[0] + 2*(1-t)*t*midLng + t*t*DEST_COORDS[0]
-      const lat = (1-t)*(1-t)*ORIGIN_COORDS[1] + 2*(1-t)*t*midLat + t*t*DEST_COORDS[1]
-      coords.push([lng, lat])
+    // Use fetched route geometry if available, otherwise draw a fallback curved route
+    let coords = [];
+    if (routeGeometry && routeGeometry.coordinates && routeGeometry.coordinates.length > 0) {
+      coords = routeGeometry.coordinates;
+    } else {
+      const midLng = (ORIGIN_COORDS[0] + DEST_COORDS[0]) / 2 - 0.02
+      const midLat = (ORIGIN_COORDS[1] + DEST_COORDS[1]) / 2 + 0.01
+      for (let i = 0; i <= 30; i++) {
+        const t = i / 30
+        const lng = (1-t)*(1-t)*ORIGIN_COORDS[0] + 2*(1-t)*t*midLng + t*t*DEST_COORDS[0]
+        const lat = (1-t)*(1-t)*ORIGIN_COORDS[1] + 2*(1-t)*t*midLat + t*t*DEST_COORDS[1]
+        coords.push([lng, lat])
+      }
     }
 
     map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [coords[0], coords[0]] } } })
@@ -259,16 +313,41 @@ export default function App() {
   const [showResults, setShowResults] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
   const [activeTab, setActiveTab] = useState('input') // 'input' | 'results'
+  const [routeGeometry, setRouteGeometry] = useState(null)
 
-  // Live-parse coordinates from origin/destination text
+  // Geocode locations from origin/destination text
   useEffect(() => {
-    const tryParse = (text) => {
+    const fetchCoords = async (text, setter) => {
+      if (!text || text.trim() === '') {
+        setter(null);
+        return;
+      }
+      
       const parts = text.split(',').map(s => parseFloat(s.trim()));
-      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) return parts;
-      return null;
+      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        setter(parts);
+        return;
+      }
+      
+      if (text.length > 2) {
+        try {
+          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(text)}.json?access_token=${import.meta.env.VITE_MAPBOX_TOKEN}&autocomplete=true&limit=1`);
+          const data = await res.json();
+          if (data.features && data.features.length > 0) {
+            setter(data.features[0].geometry.coordinates);
+          }
+        } catch(e) {
+          console.error("Geocoding error", e);
+        }
+      }
     };
-    setOriginCoords(tryParse(origin));
-    setDestCoords(tryParse(destination));
+
+    const timer = setTimeout(() => {
+      fetchCoords(origin, setOriginCoords);
+      fetchCoords(destination, setDestCoords);
+    }, 800);
+
+    return () => clearTimeout(timer);
   }, [origin, destination]);
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   const daysFull = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -291,22 +370,27 @@ export default function App() {
     if (!origin || !destination) return;
     setLoading(true);
     try {
-      const parseCoords = (input, fieldName) => {
-        const parts = input.split(',').map(s => parseFloat(s.trim()));
-        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-          return parts; // returning [lng, lat]
-        }
-        throw new Error(`Invalid coordinate format for ${fieldName}. Please use "longitude, latitude"`);
-      };
-
-      const oCoords = parseCoords(origin, 'Origin');
-      const dCoords = parseCoords(destination, 'Destination');
-      setOriginCoords(oCoords);
-      setDestCoords(dCoords);
+      if (!originCoords) throw new Error("Could not resolve Coordinates for Origin. Please type a valid location.");
+      if (!destCoords) throw new Error("Could not resolve Coordinates for Destination. Please type a valid location.");
+      
+      const oCoords = originCoords;
+      const dCoords = destCoords;
 
       let d = new Date();
       d.setDate(d.getDate() + ((selectedDay - d.getDay() + 7) % 7));
       const travel_date = d.toISOString().split('T')[0];
+
+      // Fetch route geometry and distance from Mapbox Directions API
+      const directionUrl = `https://api.mapbox.com/directions/v5/mapbox/driving/${oCoords[0]},${oCoords[1]};${dCoords[0]},${dCoords[1]}?geometries=geojson&access_token=${import.meta.env.VITE_MAPBOX_TOKEN}`;
+      const routeRes = await fetch(directionUrl);
+      const routeData = await routeRes.json();
+      
+      let routeDistanceKm = null;
+      if (routeData.routes && routeData.routes.length > 0) {
+        const bestRoute = routeData.routes[0];
+        routeDistanceKm = bestRoute.distance / 1000;
+        setRouteGeometry(bestRoute.geometry);
+      }
 
       const res = await fetch('http://localhost:5000/predict', {
         method: 'POST',
@@ -318,7 +402,8 @@ export default function App() {
           end_lon: dCoords[0],
           start_hour: startHour,
           end_hour: endHour,
-          travel_date
+          travel_date,
+          distance_km: routeDistanceKm || undefined
         })
       });
 
@@ -370,6 +455,7 @@ export default function App() {
     setPrediction(null)
     setShowResults(false)
     setActiveTab('input')
+    setRouteGeometry(null)
   }
 
   const fmt = (d) => d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
@@ -462,7 +548,7 @@ export default function App() {
                   <input
                     value={origin}
                     onChange={e => setOrigin(e.target.value)}
-                    placeholder="e.g. 13.00, 6.50 (lng, lat)"
+                    placeholder="e.g. Ikeja, Lagos"
                     style={{ width: '100%', padding: '9px 12px 9px 30px', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontFamily: 'var(--font-display)', fontSize: 12, outline: 'none', transition: 'border-color 0.2s', caretColor: 'var(--accent-cyan)' }}
                     onFocus={e => e.target.style.borderColor = 'var(--accent-cyan)'}
                     onBlur={e => e.target.style.borderColor = 'var(--border)'}
@@ -644,7 +730,7 @@ export default function App() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* Map */}
           <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-            <MapView prediction={prediction} origin={origin} destination={destination} originCoords={originCoords} destCoords={destCoords} />
+            <MapView prediction={prediction} origin={origin} destination={destination} originCoords={originCoords} destCoords={destCoords} setOrigin={setOrigin} setDestination={setDestination} routeGeometry={routeGeometry} />
 
             {/* Route info overlay */}
             {origin && destination && (

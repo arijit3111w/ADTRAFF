@@ -92,7 +92,7 @@ def _predict_hour(distance_km, n_segments, hour, travel_date):
 
 
 def find_best_time(start_lat, start_lon, end_lat, end_lon,
-                   start_hour=6, end_hour=21, travel_date=None):
+                   start_hour=6, end_hour=21, travel_date=None, distance_km=None):
     """
     Find the best hour to travel between two coordinate pairs.
     Returns a result dict matching the ADTRAFF API format exactly.
@@ -100,7 +100,10 @@ def find_best_time(start_lat, start_lon, end_lat, end_lon,
     if travel_date is None:
         travel_date = date.today()
 
-    distance_km = round(haversine_km(start_lat, start_lon, end_lat, end_lon), 2)
+    if distance_km is None:
+        distance_km = round(haversine_km(start_lat, start_lon, end_lat, end_lon), 2)
+    else:
+        distance_km = round(distance_km, 2)
 
     # Generate route segments (interpolated waypoints)
     n_waypoints = 6
@@ -196,6 +199,10 @@ def predict():
 
         start_hour = int(data.get('start_hour', 6))
         end_hour = int(data.get('end_hour', 21))
+        
+        provided_distance_km = data.get('distance_km')
+        if provided_distance_km is not None:
+            provided_distance_km = float(provided_distance_km)
 
         travel_date_str = data.get('travel_date')
         if travel_date_str:
@@ -211,7 +218,8 @@ def predict():
             end_lon=end_lon,
             start_hour=start_hour,
             end_hour=end_hour,
-            travel_date=travel_date
+            travel_date=travel_date,
+            distance_km=provided_distance_km
         )
 
         return jsonify(result)
